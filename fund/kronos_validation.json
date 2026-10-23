@@ -1,0 +1,28 @@
+{
+  "as_of": "2026-10-22",
+  "model": "Kronos-small, 5-day close forecast",
+  "chosen_lookback_days": 120,
+  "lookback_sensitivity_pred_return_5d": {
+    "note": "same latest date, 10 samples per symbol; lookback 250+ pulled recent big winners (VLO, DHT) toward the window mean",
+    "60": {"CRS": 0.116, "DHT": -0.029, "LEN": -0.022, "RIG": -0.049, "VLO": 0.005},
+    "120": {"CRS": 0.083, "DHT": -0.058, "LEN": -0.045, "RIG": -0.011, "VLO": -0.032},
+    "250": {"CRS": 0.160, "DHT": -0.228, "LEN": -0.045, "RIG": -0.046, "VLO": -0.328},
+    "400": {"CRS": 0.157, "DHT": -0.245, "LEN": -0.054, "RIG": -0.000, "VLO": -0.409}
+  },
+  "past_check_lookback_120": {
+    "note": "forecast at 6 past dates (2025-10-30 ~ 2026-08-19) x 5 symbols, compared with the actual 5-day return",
+    "n": 30,
+    "direction_hit_rate": 0.60,
+    "correlation_pred_vs_actual": -0.07,
+    "mean_abs_pred_return": 0.022,
+    "mean_abs_actual_return": 0.048
+  },
+  "past_check_lookback_400": {
+    "note": "same 6 past dates x 5 symbols as lookback 120",
+    "n": 30,
+    "direction_hit_rate": 0.37,
+    "correlation_pred_vs_actual": -0.14,
+    "mean_abs_pred_return": 0.143,
+    "mean_abs_actual_return": 0.048
+  }
+}

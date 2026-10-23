@@ -14,8 +14,12 @@ weights.csv(종목별 목표 비중)를 읽어 매주 첫 거래일(보통 월�
 
 nautilus 가상환경에서 실행:
     C:\\Users\\정영인\\.venvs\\nautilus\\Scripts\\python.exe portfolio_backtest\\backtest_weekly_rebalance.py
+
+다른 입력/출력을 쓰려면 --weights, --prices, --out, --start 인자를 준다.
+비중 합이 1보다 작으면 나머지는 현금으로 둔다.
 """
 
+import argparse
 from decimal import Decimal
 from pathlib import Path
 
@@ -38,7 +42,6 @@ from nautilus_trader.model.objects import Money, Price, Quantity
 from nautilus_trader.trading.strategy import Strategy
 
 HERE = Path(__file__).resolve().parent
-OUT_DIR = HERE / "results"
 
 VENUE = "SIM"
 STARTING_CASH = 1_000_000
@@ -175,20 +178,22 @@ def make_ticks(instrument: Equity, df: pd.DataFrame) -> list[TradeTick]:
     return ticks
 
 
-def load_inputs() -> tuple[dict[str, float], pd.DataFrame]:
-    weights = pd.read_csv(HERE / "weights.csv")
+def load_inputs(weights_path: Path, prices_path: Path, start: str | None) -> tuple[dict[str, float], pd.DataFrame]:
+    weights = pd.read_csv(weights_path).query("weight > 0")
     weights = dict(zip(weights["symbol"], weights["weight"]))
 
-    prices = pd.read_csv(HERE / "prices.csv")
+    prices = pd.read_csv(prices_path)
     prices = prices[prices["symbol"].isin(weights)].sort_values(["symbol", "date"])
+    if start:
+        prices = prices[prices["date"] >= start]
     if "open" not in prices.columns:
         # 종가만 있는 데이터: 시가 = 전일 종가 (첫날은 당일 종가)
         prices["open"] = prices.groupby("symbol")["close"].shift(1).fillna(prices["close"])
     return weights, prices
 
 
-def save_results(engine: BacktestEngine, strategy: WeeklyRebalance) -> None:
-    OUT_DIR.mkdir(exist_ok=True)
+def save_results(engine: BacktestEngine, strategy: WeeklyRebalance, out_dir: Path, title: str) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     report = engine.trader.generate_order_fills_report()
     fills = pd.DataFrame(
@@ -203,21 +208,21 @@ def save_results(engine: BacktestEngine, strategy: WeeklyRebalance) -> None:
     fills["notional"] = (fills["quantity"] * fills["price"]).round(2)
     fills["commission"] = report["commissions"].astype(str).str.extract(r"([\d.]+)")[0].astype(float)
     fills = fills.sort_values(["time_et", "side", "symbol"], ascending=[True, False, True])
-    fills.to_csv(OUT_DIR / "fills.csv", index=False)
+    fills.to_csv(out_dir / "fills.csv", index=False)
 
     curve = pd.DataFrame(strategy.equity_curve).set_index("date")
     curve["cumulative_return"] = curve["equity"] / STARTING_CASH - 1
-    curve.to_csv(OUT_DIR / "equity_curve.csv")
+    curve.to_csv(out_dir / "equity_curve.csv")
 
     fig, ax = plt.subplots(figsize=(11, 5))
     ax.plot(pd.to_datetime(curve.index), curve["cumulative_return"], color="#1f6feb", linewidth=1.4)
     ax.axhline(0, color="#888", linewidth=0.8)
     ax.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
-    ax.set_title("Weekly rebalance (skfolio MeanRisk weights, fee 0.1%) - cumulative return")
+    ax.set_title(title)
     ax.set_ylabel("Cumulative return")
     ax.grid(alpha=0.3)
     fig.tight_layout()
-    fig.savefig(OUT_DIR / "cumulative_return.png", dpi=150)
+    fig.savefig(out_dir / "cumulative_return.png", dpi=150)
 
     # 요약
     equity = curve["equity"]
@@ -232,11 +237,19 @@ def save_results(engine: BacktestEngine, strategy: WeeklyRebalance) -> None:
     print(f"체결 건수       : {len(fills)}")
     print(f"총 거래대금     : ${fills['notional'].sum():,.0f}")
     print(f"총 수수료       : ${fills['commission'].sum():,.0f}")
-    print(f"결과 저장       : {OUT_DIR}")
+    print(f"결과 저장       : {out_dir}")
 
 
 def main() -> None:
-    weights, prices = load_inputs()
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--weights", type=Path, default=HERE / "weights.csv")
+    parser.add_argument("--prices", type=Path, default=HERE / "prices.csv")
+    parser.add_argument("--out", type=Path, default=HERE / "results")
+    parser.add_argument("--start", help="이 날짜(YYYY-MM-DD)부터 백테스트")
+    parser.add_argument("--title", default="Weekly rebalance (skfolio MeanRisk weights, fee 0.1%) - cumulative return")
+    args = parser.parse_args()
+
+    weights, prices = load_inputs(args.weights, args.prices, args.start)
 
     engine = BacktestEngine(
         config=BacktestEngineConfig(logging=LoggingConfig(log_level="WARNING")),
@@ -260,7 +273,7 @@ def main() -> None:
     engine.add_strategy(strategy)
     engine.run()
 
-    save_results(engine, strategy)
+    save_results(engine, strategy, args.out, args.title)
     engine.dispose()
 
 
