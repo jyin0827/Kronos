@@ -74,3 +74,8 @@ venv.bak/
 temp/
 tmp/
 .python-version
+
+# Portfolio tracker: broker API keys, token cache and account history stay local
+tracker/dbsec_config.yaml
+tracker/history/
+.dbsec_token.json

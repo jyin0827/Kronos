@@ -1,0 +1,22 @@
+# DB증권 Open API 설정 (포트폴리오 추적기용)
+#
+# 1) 이 파일을 복사해 같은 폴더에 dbsec_config.yaml 로 저장하세요.
+# 2) DB증권 홈페이지 Open API 신청에서 받은 앱키·시크릿을 아래 따옴표 안에 넣으세요.
+# dbsec_config.yaml 은 .gitignore 에 들어 있어 GitHub에 올라가지 않습니다. 다른 사람과 공유하지 마세요.
+
+auth:
+  # 실전 계좌
+  prd_app_key:    "여기에 앱키"
+  prd_app_secret: "여기에 앱키 시크릿"
+
+  # 모의투자 계좌 (쓰지 않으면 그대로 두세요)
+  vtl_app_key:    ""
+  vtl_app_secret: ""
+
+environment:
+  base_url: "https://openapi.dbsec.co.kr:8443"
+  ws_production: "wss://openapi.dbsec.co.kr:7070/websocket"
+  ws_demo:       "wss://openapi.dbsec.co.kr:17070/websocket"
+
+  # "production" = 실전 계좌, "demo" = 모의투자 계좌
+  mode: "production"
